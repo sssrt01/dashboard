@@ -1,0 +1,26 @@
+POST http://127.0.0.1:8000/api/packing_log/
+Content-Type: application/json
+
+{
+  "shift": null,
+  "sid": 1111
+}
+
+###
+PATCH http://127.0.0.1:8000/api/shift/toggle_pause/
+Content-Type: application/json
+
+###
+POST http://localhost:8000/timer/
+Content-Type: application/json
+
+{
+  "time": 12000
+}
+###
+POST http://localhost:8000/api/packing_log/
+Content-Type: application/json
+
+{
+  "sid": "123123"
+}

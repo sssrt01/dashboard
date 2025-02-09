@@ -1,0 +1,64 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis_container
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_USER=${REDIS_USER}
+      - REDIS_USER_PASSWORD=${REDIS_USER_PASSWORD}
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./redisdata:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+  backend:
+    build:
+      context: backend/
+    container_name: backend_container
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev # Указываем dev-версию Dockerfile
+    volumes:
+      - ./frontend:/app # Монтируем всю директорию для разработки
+      - /app/node_modules # Исключаем node_modules внутри контейнера
+    ports:
+      - '3000:5173' # Пробрасываем порт для Vite-сервера
+    environment:
+      - VITE_API_BASE_URL=$VITE_API_BASE_URL
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  celery:
+    build: ./backend
+    container_name: celery_container
+    command: celery -A main worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped

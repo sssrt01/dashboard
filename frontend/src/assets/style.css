@@ -1,0 +1,84 @@
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  h1{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 7rem;
+  }
+
+  h2{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 3.5rem;
+  }
+
+  .border{
+    box-shadow:
+1px 0 0 0 #000,
+0 1px 0 0 #000,
+1px 1px 0 0 #000,
+1px 0 0 0 #000 inset,
+0 1px 0 0 #000 inset;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .row {
+    display: flex;
+    flex: 1;
+  }
+
+  .row-1 {
+    display: flex;
+  }
+
+  .row-1 > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .row-1 .col-25 {
+    flex: 1;
+    max-width: 25%;
+  }
+
+  .row-1 .col-50 {
+    flex: 2;
+    max-width: 50%;
+  }
+
+  .row-2 {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .row-3 {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .row-3 > div {
+    flex: 1;
+    max-width: 33.33%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .row-3 > div:not(:last-child) {
+    margin-right: 5px;
+  }
+
+.yellow{
+  background: rgba(218, 165, 32, 0.65);
+}
