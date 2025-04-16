@@ -1,6 +1,12 @@
 from django.contrib.auth.models import User
 from django.db import models
 
+class ShiftManager(models.Manager):
+    def get_active_shift(self):
+        return self.filter(
+            status=Shift.Status.ACTIVE
+        ).order_by('-start_time').first()
+
 
 class DefaultSettings(models.Model):
     shift_duration_in_minute = models.IntegerField(default=480) # 8 часов
@@ -50,6 +56,12 @@ class Shift(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(max_length=120, choices=Status.choices, default=Status.ACTIVE)
+    active_task = models.IntegerField(default=0, null=True, blank=True)
+    objects = ShiftManager()
+
+    def increment_active_task(self):
+        self.active_task += 1
+        self.save(update_fields=['active_task'])
 
     def __str__(self):
         return f"{self.status}/{self.name}/{self.start_time}"
@@ -72,9 +84,11 @@ class ShiftTask(models.Model):
     target = models.PositiveIntegerField(null=True, blank=True)
 
     ready_value = models.PositiveIntegerField(null=True, blank=True)
-    time_needed_in_minute = models.PositiveIntegerField(null=True, blank=True)
+    time_needed = models.PositiveIntegerField(null=True, blank=True)
+
+    norm_in_minute = models.PositiveIntegerField(null=True, blank=True)
     time_spent = models.PositiveBigIntegerField(null=True, blank=True)
-    percent_from_shift = models.PositiveIntegerField(null=True, blank=True)
+    percent_from_shift = models.FloatField(null=True, blank=True)
 
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -82,10 +96,11 @@ class ShiftTask(models.Model):
 
 class PackingLog(models.Model):
     shift = models.ForeignKey(Shift, on_delete=models.CASCADE, null=True, blank=True)
-    sid = models.IntegerField()
+    task = models.ForeignKey(ShiftTask, on_delete=models.CASCADE, null=True, blank=True)
+    sid = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.sid}"
+        return f"{self.shift.name + ' ' + self.shift.id}/{self.task.id}"
 
 
 class BreakLog(models.Model):

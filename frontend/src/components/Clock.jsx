@@ -26,8 +26,8 @@ const Clock = () => {
 
   return (
     <>
-      <h2>{formatDate(currentTime)}</h2>
-      <h2>{formatTime(currentTime)}</h2>
+      <h3>{formatDate(currentTime)}</h3>
+      <h3>{formatTime(currentTime)}</h3>
     </>
   );
 };

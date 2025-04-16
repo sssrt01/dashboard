@@ -44,10 +44,24 @@ class ShiftConsumer(AsyncWebsocketConsumer):
             tasks_list_key = f"shift:{self.shift_id}:tasks"
             tasks = self.redis_conn.lrange(tasks_list_key, 0, -1)
 
+            shift_tasks = []
+
+            # Перебор всех задач
+            for task in tasks:
+                task_data = self.redis_conn.hgetall(f"task:{task}")
+
+                # Для каждой задачи извлекаем нужные поля
+                task_info = {}
+                for key in task_data:
+                    # Преобразуем байтовые строки в нормальные строки (если нужно)
+                    task_info[key] = task_data[key]
+
+                shift_tasks.append(task_info)
+
             # Отправляем клиенту начальные данные
             payload = {
                 "shift": shift_data,
-                "tasks": tasks,
+                "tasks": shift_tasks,
             }
             await self.send(text_data=json.dumps({
                 "type": "shift_init",

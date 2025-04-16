@@ -9,6 +9,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.conf import settings
 from django.utils import timezone
+from django.forms.models import model_to_dict
 
 import redis
 
@@ -22,10 +23,13 @@ redis_conn = redis.Redis(
     decode_responses=True,
 )
 
+
 @shared_task(bind=True)
 def lead_shift(self, shift_id):
     """
     Ведение смены в реальном времени.
+    При старте каждого задания через WS отправляется полная информация
+    о смене и текущем задании. При смене задания отправляется новое задание.
     """
     channel_layer = get_channel_layer()
     shift_key = f"shift:{shift_id}"
@@ -45,93 +49,132 @@ def lead_shift(self, shift_id):
     active_task_index = int(redis_conn.hget(shift_key, "active_task") or 0)
 
     while active_task_index < num_tasks:
+        current_task_id = task_ids[active_task_index]
+        task_key = f"task:{current_task_id}"
+        task_data = redis_conn.hgetall(task_key)
+
+        if not task_data:
+            logging.warning(f"[SHIFT {shift_id}] Task {current_task_id} not found in Redis. Skipping.")
+            active_task_index += 1
+            redis_conn.hset(shift_key, "active_task", active_task_index)
+            continue
+
+        task_type = task_data.get("type")
+        now_str = timezone.now().isoformat()
+
+        # Если задание ещё не запущено, устанавливаем время старта
+        if not task_data.get("started_at"):
+            redis_conn.hset(task_key, "started_at", now_str)
+            task_data["started_at"] = now_str
+            logging.info(f"[TASK {current_task_id}] Started at {now_str}")
+
+        # Формируем полную информацию о смене
         try:
-            current_task_id = task_ids[active_task_index]
-            task_key = f"task:{current_task_id}"
-            task_data = redis_conn.hgetall(task_key)
+            shift_obj = Shift.objects.get(id=shift_id)
+            shift_info = model_to_dict(shift_obj)
+        except Exception as e:
+            logging.error(f"[SHIFT {shift_id}] Ошибка получения смены из БД: {str(e)}", exc_info=True)
+            shift_info = {"id": shift_id}
 
-            if not task_data:
-                logging.warning(f"[SHIFT {shift_id}] Task {current_task_id} not found in Redis. Skipping.")
-                active_task_index += 1
-                redis_conn.hset(shift_key, "active_task", active_task_index)
-                continue
+        # Отправляем полную информацию о смене и новом активном задании
+        async_to_sync(channel_layer.group_send)(
+            f"shift_{shift_id}",
+            {
+                "type": "shift.update",
+                "event": "new_task",
+                "data": {
+                    "shift": shift_info,
+                    "task": task_data,
+                },
+            },
+        )
+        logging.warning(
+            f"[SHIFT {shift_id}] Processing task index: {active_task_index} (Task ID: {current_task_id}, Type: {task_type})")
 
-            task_type = task_data.get("type")
-            now_str = timezone.now().isoformat()
-
-            # Лог перед стартом задачи
-            logging.warning(f"[SHIFT {shift_id}] Processing task index: {active_task_index} (Task ID: {current_task_id}, Type: {task_type})")
-
-            # Если время старта не установлено, устанавливаем его
-            if not task_data.get("started_at"):
-                redis_conn.hset(task_key, "started_at", now_str)
-                logging.info(f"[TASK {current_task_id}] Started at {now_str}")
+        # Основной цикл выполнения задания
+        while True:
+            new_active_task_index = int(redis_conn.hget(shift_key, "active_task") or 0)
+            logging.warning(
+                f"[SHIFT {shift_id}] Checking active_task: {new_active_task_index} (current: {active_task_index})")
+            if new_active_task_index != active_task_index:
+                # Завершаем текущее задание
+                finish_time = timezone.now().isoformat()
+                redis_conn.hset(task_key, "finished_at", finish_time)
+                task_data["finished_at"] = finish_time
+                logging.info(f"[TASK {current_task_id}] Marked as finished (active_task changed).")
                 async_to_sync(channel_layer.group_send)(
                     f"shift_{shift_id}",
-                    {"type": "task.update", "event": "start", "task_id": current_task_id, "data": {"started_at": now_str}},
+                    {
+                        "type": "task.update",
+                        "event": "finish",
+                        "task_id": current_task_id,
+                        "data": task_data,
+                    },
+                )
+                active_task_index = new_active_task_index
+                break
+
+            if task_type == "TASK":
+                # Обновляем время выполнения
+                current_time_spent = int(task_data.get("time_spent") or 0) + 1
+                redis_conn.hset(task_key, "time_spent", str(current_time_spent))
+                task_data["time_spent"] = str(current_time_spent)
+                logging.info(f"[TASK {current_task_id}] TASK type updated: time_spent = {current_time_spent}")
+                async_to_sync(channel_layer.group_send)(
+                    f"shift_{shift_id}",
+                    {
+                        "type": "task.update",
+                        "event": "update",
+                        "task_id": current_task_id,
+                        "data": task_data,
+                    },
                 )
 
-            # Основной цикл выполнения задачи
-            while True:
-                new_active_task_index = int(redis_conn.hget(shift_key, "active_task") or 0)
-                logging.warning(f"[SHIFT {shift_id}] Checking active_task: {new_active_task_index} (current: {active_task_index})")
-                if new_active_task_index != active_task_index:
-                    redis_conn.hset(task_key, "finished_at", timezone.now().isoformat())
-                    logging.info(f"[TASK {current_task_id}] Marked as finished (active_task changed).")
+            elif task_type == "BREAK":
+                # Обновляем оставшееся время для перерыва
+                current_remaining = int(task_data.get("remaining_time") or 0)
+                logging.info(f"[TASK {current_task_id}] BREAK type, remaining_time before update: {current_remaining}")
+                if current_remaining > 0:
+                    current_remaining -= 1
+                    redis_conn.hset(task_key, "remaining_time", str(current_remaining))
+                    task_data["remaining_time"] = str(current_remaining)
+                    logging.info(f"[TASK {current_task_id}] BREAK updated, remaining_time now: {current_remaining}")
                     async_to_sync(channel_layer.group_send)(
                         f"shift_{shift_id}",
-                        {"type": "task.update", "event": "finish", "task_id": current_task_id, "data": {"finished_at": timezone.now().isoformat()}},
+                        {
+                            "type": "task.update",
+                            "event": "update",
+                            "task_id": current_task_id,
+                            "data": task_data,
+                        },
                     )
+                else:
+                    # Если время перерыва истекло – завершаем задание
+                    finish_time = timezone.now().isoformat()
+                    redis_conn.hset(task_key, "finished_at", finish_time)
+                    task_data["finished_at"] = finish_time
+                    logging.info(f"[TASK {current_task_id}] BREAK finished. Finishing task.")
+                    async_to_sync(channel_layer.group_send)(
+                        f"shift_{shift_id}",
+                        {
+                            "type": "task.update",
+                            "event": "finish",
+                            "task_id": current_task_id,
+                            "data": task_data,
+                        },
+                    )
+                    # Переходим к следующему заданию
+                    new_active_task_index = active_task_index + 1
+                    redis_conn.hset(shift_key, "active_task", new_active_task_index)
                     active_task_index = new_active_task_index
                     break
 
-                if task_type == "TASK":
-                    current_time_spent = int(task_data.get("time_spent") or 0) + 1
-                    redis_conn.hset(task_key, "time_spent", str(current_time_spent))
-                    logging.info(f"[TASK {current_task_id}] TASK type updated: time_spent = {current_time_spent}")
-                    async_to_sync(channel_layer.group_send)(
-                        f"shift_{shift_id}",
-                        {"type": "task.update", "event": "update", "task_id": current_task_id, "data": {"time_spent": current_time_spent, "ready_value": task_data.get("ready_value")}},
-                    )
+            # Обновляем данные задания для следующей итерации
+            task_data = redis_conn.hgetall(task_key)
+            logging.warning(f"[TASK {current_task_id}] Sleeping for 1 second.")
+            time.sleep(1)
 
-                elif task_type == "BREAK":
-                    current_remaining = int(task_data.get("remaining_time") or 0)
-                    logging.info(f"[TASK {current_task_id}] BREAK type, remaining_time before update: {current_remaining}")
-                    if current_remaining > 0:
-                        current_remaining -= 1
-                        redis_conn.hset(task_key, "remaining_time", str(current_remaining))
-                        logging.info(f"[TASK {current_task_id}] BREAK updated, remaining_time now: {current_remaining}")
-                        async_to_sync(channel_layer.group_send)(
-                            f"shift_{shift_id}",
-                            {"type": "task.update", "event": "update", "task_id": current_task_id, "data": {"remaining_time": current_remaining}},
-                        )
-                    else:
-                        logging.info(f"[TASK {current_task_id}] BREAK finished, remaining_time is 0. Finishing task.")
-                        redis_conn.hset(task_key, "finished_at", timezone.now().isoformat())
-                        async_to_sync(channel_layer.group_send)(
-                            f"shift_{shift_id}",
-                            {"type": "task.update", "event": "finish", "task_id": current_task_id, "data": {"finished_at": timezone.now().isoformat()}},
-                        )
-                        # Переход к следующему заданию
-                        new_active_task_index = active_task_index + 1
-                        redis_conn.hset(shift_key, "active_task", new_active_task_index)
-                        active_task_index = new_active_task_index
-                        break
-
-                # Обновляем данные для следующей итерации
-                task_data = redis_conn.hgetall(task_key)
-                logging.debug(f"[TASK {current_task_id}] Sleeping for 1 second.")
-                time.sleep(1)
-
-        except Exception as e:
-            logging.error(f"[SHIFT {shift_id}] Error while processing task {current_task_id}: {str(e)}")
-            logging.error(traceback.format_exc())
-            self.update_state(state="FAILURE", meta=str(e))
-            raise e
-
-        # Обновляем active_task_index для внешнего цикла, если он изменился
-        active_task_index = int(redis_conn.hget(shift_key, "active_task") or active_task_index)
-
+    # Завершаем смену: обновляем базу данных и очищаем данные в Redis
     try:
         logging.warning(f"[SHIFT {shift_id}] Marking shift as completed in database.")
         shift = Shift.objects.get(id=shift_id)
@@ -147,7 +190,8 @@ def lead_shift(self, shift_id):
                     task_defaults = {
                         "time_spent": int(task_data.get("time_spent") or 0),
                         "ready_value": int(task_data.get("ready_value") or 0) if task_data.get("ready_value") else None,
-                        "remaining_time": int(task_data.get("remaining_time") or 0) if task_data.get("remaining_time") else None,
+                        "remaining_time": int(task_data.get("remaining_time") or 0) if task_data.get(
+                            "remaining_time") else None,
                         "started_at": task_data.get("started_at"),
                         "finished_at": task_data.get("finished_at"),
                     }

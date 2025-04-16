@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Button, Form, Input, message } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import authService from '../services/authService.jsx';
-import "../assets/LoginPage.css"
+import authService from '../../services/authService.jsx';
+import "../../assets/LoginPage.css"
 const LoginPage = () => {
   const [loading, setLoading] = useState(false);
 
