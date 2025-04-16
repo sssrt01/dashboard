@@ -35,8 +35,19 @@ class ShiftTaskSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ['id', 'shift']
 
+class _ShiftTaskSerializer(serializers.ModelSerializer):
+    product = serializers.CharField(source='product.name', read_only=True)
+    packing = serializers.CharField(source='packing.value', read_only=True)
+
+    class Meta:
+        model = ShiftTask
+        fields = "__all__"
+        read_only_fields = ['id', 'shift']
+
+
 class ShiftSerializer(serializers.ModelSerializer):
     tasks = ShiftTaskSerializer(many=True, required=False)
+    shifttask_set = ShiftTaskSerializer(many=True, read_only=True)
 
     class Meta:
         model = Shift
@@ -49,6 +60,8 @@ class ShiftSerializer(serializers.ModelSerializer):
         for task_data in tasks_data:
             ShiftTask.objects.create(shift=shift, **task_data)
         return shift
+
+
 
 class PackingLogSerializer(serializers.ModelSerializer):
     class Meta:
@@ -76,3 +89,22 @@ class BreakLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = BreakLog
         fields = '__all__'
+
+
+class DetailedShiftTaskSerializer(serializers.ModelSerializer):
+    product = ProductSerializer()
+    packing = PackingSerializer()
+
+    class Meta:
+        model = ShiftTask
+        fields = "__all__"
+        read_only_fields = ['id', 'shift']
+
+class DetailedShiftSerializer(serializers.ModelSerializer):
+    tasks = DetailedShiftTaskSerializer(many=True, required=False)
+    shifttask_set = DetailedShiftTaskSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Shift
+        fields = "__all__"
+        read_only_fields = ['id', 'user_starts']

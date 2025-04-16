@@ -14,6 +14,17 @@
     font-size: 3.5rem;
   }
 
+  h3{
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2rem;
+  }
+
+  .text-muted{
+    color: grey;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1rem;
+  }
+
   .border{
     box-shadow:
 1px 0 0 0 #000,

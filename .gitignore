@@ -173,3 +173,4 @@ dmypy.json
 .pyre/
 .pytype/
 cython_debug/
+!/backend/.dashboard_venv/
