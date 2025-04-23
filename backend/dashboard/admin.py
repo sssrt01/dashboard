@@ -1,6 +1,23 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
 
+from .forms import CustomUserCreationForm
 from .models import Product, Packing, Shift, PackingLog, BreakLog, ProductPacking, ShiftTask, DefaultSettings
+
+
+class CustomUserAdmin(UserAdmin):
+    add_form = CustomUserCreationForm
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2'),
+        }),
+    )
+
+
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
 
 
 class ProductPackingInline(admin.TabularInline):
@@ -27,7 +44,7 @@ class PackingAdmin(admin.ModelAdmin):
 class ShiftTaskInline(admin.TabularInline):
     model = ShiftTask
     extra = 0
-    fields = ('type', 'product', 'packing', 'target', 'order')  # Удаляем 'status'
+    fields = ('type', 'product', 'packing', 'target', 'order', 'status')
     ordering = ('order',)
 
 class ShiftAdmin(admin.ModelAdmin):
