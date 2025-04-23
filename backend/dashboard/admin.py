@@ -27,7 +27,7 @@ class PackingAdmin(admin.ModelAdmin):
 class ShiftTaskInline(admin.TabularInline):
     model = ShiftTask
     extra = 0
-    fields = ('type', 'product', 'packing', 'target', 'order', 'status')
+    fields = ('type', 'product', 'packing', 'target', 'order')  # Удаляем 'status'
     ordering = ('order',)
 
 class ShiftAdmin(admin.ModelAdmin):
@@ -63,11 +63,10 @@ class PackingLogAdmin(admin.ModelAdmin):
     date_hierarchy = 'created_at'
     list_per_page = 50
     ordering = ('-created_at',)
-    readonly_fields = ('shift', 'task', 'sid')
+    readonly_fields = ('shift', 'task', 'sid', 'created_at')
 
     def get_shift_name(self, obj):
         return obj.shift.name if obj.shift else 'No shift'
-
     get_shift_name.short_description = 'Shift'
 
     def get_queryset(self, request):

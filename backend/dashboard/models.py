@@ -98,9 +98,10 @@ class PackingLog(models.Model):
     shift = models.ForeignKey(Shift, on_delete=models.CASCADE, null=True, blank=True)
     task = models.ForeignKey(ShiftTask, on_delete=models.CASCADE, null=True, blank=True)
     sid = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)  # Добавьте это поле
 
     def __str__(self):
-        return f"{self.shift.name + ' ' + self.shift.id}/{self.task.id}"
+        return f"{self.shift.name + ' ' + str(self.shift.id)}/{self.task.id}"
 
 
 class BreakLog(models.Model):
