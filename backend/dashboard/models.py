@@ -8,6 +8,17 @@ class ShiftManager(models.Manager):
         ).order_by('-start_time').first()
 
 
+class Master(models.Model):
+    name = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name_plural = "Мастера"
+        ordering = ['name']
+
 class DefaultSettings(models.Model):
     shift_duration_in_minute = models.IntegerField(default=480) # 8 часов
 
@@ -50,7 +61,7 @@ class Shift(models.Model):
     user_starts = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shift_starts')
     user_ends = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='shift_ends')
 
-    name = models.CharField(max_length=120)
+    master = models.ForeignKey(Master, on_delete=models.PROTECT, related_name='shifts')
 
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
@@ -64,7 +75,7 @@ class Shift(models.Model):
         self.save(update_fields=['active_task'])
 
     def __str__(self):
-        return f"{self.status}/{self.name}/{self.start_time}"
+        return f"{self.status}/{self.master.name}/{self.start_time}"
 
 class ShiftTask(models.Model):
     class TaskType(models.TextChoices):

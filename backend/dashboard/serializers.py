@@ -1,5 +1,3 @@
-import logging
-
 import redis
 from django.db.models import Q
 from rest_framework import serializers
@@ -29,6 +27,7 @@ class PackingSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+###FIXME: Master obj dont sends to front
 class ShiftTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShiftTask

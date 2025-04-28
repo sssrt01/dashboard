@@ -1,12 +1,13 @@
-import React, { useState } from "react";
-import { Form, Input, Button, Row, Col, Divider, Typography, Space, message } from "antd";
-import { ClockCircleOutlined, ExperimentOutlined, PlusOutlined } from "@ant-design/icons";
+import React, {useEffect, useState} from "react";
+import {Button, Col, Divider, Form, message, Row, Select, Space, Typography} from "antd";
+import {ClockCircleOutlined, PlusOutlined, UserOutlined} from "@ant-design/icons";
 import styled from "styled-components";
 import TaskItem from "./TaskItem";
 import ShiftProgress from "./ShiftProgress";
 import apiClient from "../../../services/api.jsx";
 
 const { Title, Text } = Typography;
+const {Option} = Select;
 
 const StyledCard = styled.div`
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -23,6 +24,21 @@ const StyledCard = styled.div`
 const NewShiftForm = () => {
   const [form] = Form.useForm();
   const [totalPercentage, setTotalPercentage] = useState(0);
+  const [masters, setMasters] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchMasters();
+  }, []);
+
+  const fetchMasters = async () => {
+    try {
+      const response = await apiClient.get("masters/");
+      setMasters(response.data);
+    } catch (error) {
+      message.error("Помилка завантаження списку майстрів");
+    }
+  };
 
   const updateTotalPercentage = () => {
     const tasks = form.getFieldValue("tasks") || [];
@@ -41,6 +57,7 @@ const NewShiftForm = () => {
 
   const createShift = async (values) => {
     try {
+      setLoading(true);
       const tasksWithOrder = values.tasks.map((task, index) => ({
         ...task,
         order: index,
@@ -48,9 +65,11 @@ const NewShiftForm = () => {
 
       await apiClient.post("shifts/", { ...values, tasks: tasksWithOrder });
       message.success("Зміну створено успішно!");
-      window.location.reload()
+      window.location.reload();
     } catch (error) {
       message.error("Помилка створення зміни.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,15 +87,21 @@ const NewShiftForm = () => {
           <Row gutter={24}>
             <Col span={24}>
               <Form.Item
-                name="name"
-                label="Назва зміни"
-                rules={[{ required: true, message: "Будь ласка, введіть назву зміни." }]}
+                  name="master"
+                  label="Майстер зміни"
+                  rules={[{required: true, message: "Будь ласка, оберіть майстра зміни"}]}
               >
-                <Input
-                  placeholder="Наприклад: Ранкова зміна №1"
+                <Select
+                    placeholder="Оберіть майстра"
                   size="large"
-                  prefix={<ExperimentOutlined />}
-                />
+                    suffixIcon={<UserOutlined/>}
+                >
+                  {masters.map(master => (
+                      <Option key={master.id} value={master.id}>
+                        {master.name}
+                      </Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
 
@@ -138,7 +163,13 @@ const NewShiftForm = () => {
             </Col>
 
             <Col span={24} style={{ marginTop: 24, textAlign: "center" }}>
-              <Button type="primary" htmlType="submit" size="large" style={{ width: 200, height: 40 }}>
+              <Button
+                  type="primary"
+                  htmlType="submit"
+                  size="large"
+                  style={{width: 200, height: 40}}
+                  loading={loading}
+              >
                 Створити зміну
               </Button>
             </Col>

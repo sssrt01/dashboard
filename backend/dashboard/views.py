@@ -1,11 +1,13 @@
 import logging
+
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Shift, Product, Packing, PackingLog, ProductPacking, DefaultSettings, ShiftTask
+from . import task
+from .models import Shift, Product, Packing, PackingLog, DefaultSettings, ShiftTask, Master
 from .repos.redis_repository import RedisRepository
 from .serializers import (
     ProductSerializer,
@@ -16,7 +18,6 @@ from .serializers import (
     # ShiftTaskDetailedSerializer,
     PackingCreateSerializer, DetailedShiftSerializer
 )
-from . import task
 
 
 class BaseViewSet(viewsets.ModelViewSet):
@@ -113,19 +114,10 @@ class ShiftViewSet(BaseViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    # @action(detail=False, methods=['get'])
-    # def active(self, request):
-    #     active_shift = Shift.objects.get_active_shift()
-    #     if not active_shift:
-    #         return Response({"detail": "Активна зміна не знайдена"}, status=404)
-    #
-    #     serializer = self.get_serializer(active_shift)
-    #     return Response(serializer.data)
-
     def _initialize_shift_in_redis(self, shift):
         self.redis.update_shift_data(shift.id, {
             "id": shift.id,
-            "name": shift.name,
+            "master": shift.master.id,
             "status": shift.status,
             "active_task": 0,
         })
@@ -192,3 +184,15 @@ class IncrementActiveTaskView(APIView):
 
     def _error_response(self, message, status_code):
         return Response({"error": message}, status=status_code)
+
+
+class MasterViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return Master.objects.filter(is_active=True)
+
+    def list(self, request):
+        masters = self.get_queryset()
+        data = [{'id': master.id, 'name': master.name} for master in masters]
+        return Response(data)

@@ -1,16 +1,6 @@
-import React, { useContext, useState, useMemo, useEffect } from 'react';
-import {
-  Card,
-  Button,
-  Modal,
-  Timeline,
-  Tag,
-  Descriptions,
-  Alert,
-  Space,
-  Spin
-} from 'antd';
-import { QuestionCircleOutlined } from '@ant-design/icons';
+import React, {useContext, useEffect, useMemo, useState} from 'react';
+import {Alert, Button, Card, Descriptions, Modal, Space, Spin, Tag, Timeline} from 'antd';
+import {QuestionCircleOutlined} from '@ant-design/icons';
 import ShiftContext from '../services/ShiftContext';
 import moment from 'moment';
 import apiClient from "../services/api.jsx";
@@ -172,7 +162,7 @@ const renderTaskDetails = () => {
   return (
     <div className="shift-management">
       <Card
-        title={`Зміна #${shift.id} - ${shift.name}`}
+          title={`Зміна #${shift.id}`}
         extra={
           <Space>
             <Tag>{currentTime.format('DD.MM.YYYY HH:mm')}</Tag>
@@ -190,7 +180,7 @@ const renderTaskDetails = () => {
             {shiftDuration}
           </Descriptions.Item>
           <Descriptions.Item label="Прогрес зміни">
-            {Math.round((currentIndex / tasks.length) * -100)}%
+            {currentIndex + 1} / {tasks.length}
           </Descriptions.Item>
         </Descriptions>
 

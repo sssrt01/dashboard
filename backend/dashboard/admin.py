@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 
 from .forms import CustomUserCreationForm
-from .models import Product, Packing, Shift, PackingLog, BreakLog, ProductPacking, ShiftTask, DefaultSettings
+from .models import Product, Packing, Shift, PackingLog, BreakLog, ProductPacking, ShiftTask, DefaultSettings, Master
 
 
 class CustomUserAdmin(UserAdmin):
@@ -48,7 +48,7 @@ class ShiftTaskInline(admin.TabularInline):
     ordering = ('order',)
 
 class ShiftAdmin(admin.ModelAdmin):
-    list_display = ('name', 'status', 'start_time', 'end_time', 'user_starts', 'get_products', 'get_packings')
+    list_display = ('master', 'status', 'start_time', 'end_time', 'user_starts', 'get_products', 'get_packings')
     search_fields = ('name', 'user_starts__username')
     list_filter = ('status', 'start_time', 'user_starts')
     date_hierarchy = 'start_time'
@@ -56,6 +56,13 @@ class ShiftAdmin(admin.ModelAdmin):
     list_per_page = 50
     ordering = ('-start_time',)
     readonly_fields = ('start_time',)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "master":
+            # В форме создания/редактирования показываем только активных мастеров
+            kwargs["queryset"] = Master.objects.filter(is_active=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related(
@@ -129,6 +136,14 @@ class ShiftTaskAdmin(admin.ModelAdmin):
 class DefaultSettingsAdmin(admin.ModelAdmin):
     list_display = ('shift_duration_in_minute',)
 
+
+class MasterAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    ordering = ('name',)
+    list_per_page = 50
+
 admin.site.register(Product, ProductAdmin)
 admin.site.register(Packing, PackingAdmin)
 admin.site.register(Shift, ShiftAdmin)
@@ -136,3 +151,4 @@ admin.site.register(PackingLog, PackingLogAdmin)
 admin.site.register(BreakLog, BreakLogAdmin)
 admin.site.register(ShiftTask, ShiftTaskAdmin)
 admin.site.register(DefaultSettings, DefaultSettingsAdmin)
+admin.site.register(Master, MasterAdmin)

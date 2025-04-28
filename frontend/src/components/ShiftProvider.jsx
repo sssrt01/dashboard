@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import ShiftContext from '../services/ShiftContext';
 
 const ShiftProvider = ({ children }) => {
@@ -7,7 +7,8 @@ const ShiftProvider = ({ children }) => {
   const [reload, setReload] = useState(false);
 
   useEffect(() => {
-    const socket = new WebSocket('ws://10.10.10.95:8000/ws/shifts/');
+    // const socket = new WebSocket('ws://10.10.10.95:8000/ws/shifts/');
+    const socket = new WebSocket('ws://localhost:8000/ws/shifts/');
 
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
