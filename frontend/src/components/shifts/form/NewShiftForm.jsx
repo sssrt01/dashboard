@@ -1,10 +1,12 @@
 import React, {useEffect, useState} from "react";
-import {Button, Col, Divider, Form, message, Row, Select, Space, Typography} from "antd";
+import {Button, Checkbox, Col, DatePicker, Divider, Form, message, Row, Select, Space, Typography} from "antd";
 import {ClockCircleOutlined, PlusOutlined, UserOutlined} from "@ant-design/icons";
 import styled from "styled-components";
 import TaskItem from "./TaskItem";
 import ShiftProgress from "./ShiftProgress";
 import apiClient from "../../../services/api.jsx";
+import dayjs from "dayjs";
+
 
 const { Title, Text } = Typography;
 const {Option} = Select;
@@ -23,7 +25,6 @@ const StyledCard = styled.div`
 
 const NewShiftForm = () => {
   const [form] = Form.useForm();
-  const [totalPercentage, setTotalPercentage] = useState(0);
   const [masters, setMasters] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -40,143 +41,168 @@ const NewShiftForm = () => {
     }
   };
 
-  const updateTotalPercentage = () => {
-    const tasks = form.getFieldValue("tasks") || [];
-
-    let total = 0;
-    tasks.forEach((task) => {
-      if (task?.type === "TASK") {
-        total += parseFloat(task?.percentage) || 0;
-      } else if (task?.type === "BREAK" && task?.remaining_time) {
-        total += (task.remaining_time / 480) * 100;
-      }
-    });
-
-    setTotalPercentage(total.toFixed(1));
-  };
-
-  const createShift = async (values) => {
+    const createShifts = async (values) => {
     try {
       setLoading(true);
-      const tasksWithOrder = values.tasks.map((task, index) => ({
-        ...task,
-        order: index,
-      }));
+        const shifts = values.shifts || [];
 
-      await apiClient.post("shifts/", { ...values, tasks: tasksWithOrder });
-      message.success("Зміну створено успішно!");
+        for (const shift of shifts) {
+            const tasksWithOrder = (shift.tasks || []).map((task, index) => ({
+                ...task,
+                order: index,
+            }));
+
+            const start_time = shift.start_now
+                ? new Date().toISOString()
+                : dayjs(shift.planned_start_time).toISOString();
+
+            await apiClient.post("shifts/", {
+                master: shift.master,
+                tasks: tasksWithOrder,
+                planned_start_time: start_time,
+            });
+        }
+
+        message.success("Зміни створено успішно!");
       window.location.reload();
     } catch (error) {
-      message.error("Помилка створення зміни.");
+        message.error("Помилка створення змін.");
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <StyledCard>
+    return (<>
       <div style={{ padding: "16px" }}>
         <Space align="center" style={{ marginBottom: "24px" }}>
           <ClockCircleOutlined style={{ fontSize: 24, color: "#1890ff" }} />
           <Title level={4} style={{ margin: 0 }}>
-            Створення нової зміни
+              Створення нових змін
           </Title>
         </Space>
 
-        <Form form={form} layout="vertical" onFinish={createShift}>
-          <Row gutter={24}>
-            <Col span={24}>
-              <Form.Item
-                  name="master"
-                  label="Майстер зміни"
-                  rules={[{required: true, message: "Будь ласка, оберіть майстра зміни"}]}
-              >
-                <Select
-                    placeholder="Оберіть майстра"
-                  size="large"
-                    suffixIcon={<UserOutlined/>}
-                >
-                  {masters.map(master => (
-                      <Option key={master.id} value={master.id}>
-                        {master.name}
-                      </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-
-            <Col span={24}>
-              <Divider orientation="left" orientationMargin="0">
-                <Text strong style={{ fontSize: 16 }}>
-                  Завдання зміни
-                </Text>
-              </Divider>
-
-              <Row gutter={24}>
-                {/* Левая колонка с задачами */}
-                <Col xs={24} md={16}>
-                  <Form.List name="tasks">
-                    {(fields, { add, remove }) => (
+          <Form form={form} layout="vertical" onFinish={createShifts}>
+              <Form.List name="shifts">
+                  {(fields, {add, remove}) => (
                       <>
-                        {fields.map(({ key, name }) => (
-                          <TaskItem
-                            key={key}
-                            name={name}
-                            remove={remove}
-                            form={form}
-                            updateTotalPercentage={updateTotalPercentage}
-                          />
-                        ))}
+                          {fields.map(({key, name}) => (
+                              <div
+                                  key={key}
+                                  style={{
+                                      border: "1px solid #f0f0f0",
+                                      borderRadius: 8,
+                                      padding: 16,
+                                      marginBottom: 24,
+                                      background: "#fafafa",
+                                  }}
+                              >
+                                  <Row gutter={24}>
+                                      <Col span={24}>
+                                          <Form.Item
+                                              name={[name, "master"]}
+                                              label="Майстер зміни"
+                                              rules={[{required: true, message: "Оберіть майстра"}]}
+                                          >
+                                              <Select placeholder="Оберіть майстра" size="large"
+                                                      suffixIcon={<UserOutlined/>}>
+                                                  {masters.map((master) => (
+                                                      <Option key={master.id} value={master.id}>
+                                                          {master.name}
+                                                      </Option>
+                                                  ))}
+                                              </Select>
+                                          </Form.Item>
+                                      </Col>
 
-                        <Form.Item>
-                          <Button
-                            type="dashed"
-                            onClick={() => add()}
-                            block
-                            icon={<PlusOutlined />}
-                            size="large"
-                          >
-                            Додати завдання
-                          </Button>
-                        </Form.Item>
+                                      <Col xs={24} md={12}>
+                                          <Form.Item
+                                              name={[name, "start_now"]}
+                                              valuePropName="checked"
+                                          >
+                                              <Checkbox>Почати зараз</Checkbox>
+                                          </Form.Item>
+                                      </Col>
+
+                                      <Col xs={24} md={12}>
+                                          <Form.Item
+                                              name={[name, "planned_start_time"]}
+                                              label="Час початку"
+                                              rules={[{required: false}]}
+                                          >
+                                              <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{width: "100%"}}/>
+                                          </Form.Item>
+                                      </Col>
+
+                                      <Col span={24}>
+                                          <Divider orientation="left">Завдання</Divider>
+                                          <Row gutter={24}>
+                                              <Col xs={24} md={16}>
+                                                  <Form.List name={[name, "tasks"]}>
+                                                      {(taskFields, {add, remove}) => (
+                                                          <>
+                                                              {taskFields.map(({key: taskKey, name: taskName}) => (
+                                                                  <TaskItem
+                                                                      key={taskKey}
+                                                                      name={taskName}
+                                                                      remove={remove}
+                                                                      form={form}
+                                                                      updateTotalPercentage={() => {
+                                                                      }}
+                                                                  />
+                                                              ))}
+                                                              <Form.Item>
+                                                                  <Button
+                                                                      type="dashed"
+                                                                      onClick={() => add()}
+                                                                      block
+                                                                      icon={<PlusOutlined/>}
+                                                                  >
+                                                                      Додати завдання
+                                                                  </Button>
+                                                              </Form.Item>
+                                                          </>
+                                                      )}
+                                                  </Form.List>
+                                              </Col>
+                                              <Col xs={24} md={8}>
+                                                  {/* Индикатор можно переделать на общий или убрать */}
+                                                  <ShiftProgress totalPercentage={0}/>
+                                              </Col>
+                                          </Row>
+                                      </Col>
+                                  </Row>
+                              </div>
+                          ))}
+
+                          <Form.Item>
+                              <Button
+                                  type="dashed"
+                                  onClick={() => add()}
+                                  block
+                                  icon={<PlusOutlined/>}
+                                  size="large"
+                              >
+                                  Додати зміну
+                              </Button>
+                          </Form.Item>
                       </>
-                    )}
-                  </Form.List>
-                </Col>
+                  )}
+              </Form.List>
 
-                {/* Правая колонка с нагрузкой */}
-                <Col xs={24} md={8}>
-                  <div
-                    style={{
-                      position: "sticky",
-                      top: "20px",
-                      padding: "16px",
-                      border: "1px solid #e8e8e8",
-                      borderRadius: "8px",
-                      background: "#fff",
-                    }}
+              <div style={{textAlign: "center", marginTop: 24}}>
+                  <Button
+                      type="primary"
+                      htmlType="submit"
+                      size="large"
+                      loading={loading}
+                      style={{width: 200, height: 40}}
                   >
-                    <ShiftProgress totalPercentage={totalPercentage} />
-                  </div>
-                </Col>
-              </Row>
-            </Col>
-
-            <Col span={24} style={{ marginTop: 24, textAlign: "center" }}>
-              <Button
-                  type="primary"
-                  htmlType="submit"
-                  size="large"
-                  style={{width: 200, height: 40}}
-                  loading={loading}
-              >
-                Створити зміну
-              </Button>
-            </Col>
-          </Row>
+                      Створити зміни
+                  </Button>
+              </div>
         </Form>
       </div>
-    </StyledCard>
+        </>
   );
 };
 

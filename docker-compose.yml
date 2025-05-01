@@ -60,3 +60,15 @@ services:
       - redis
       - backend
     restart: unless-stopped
+
+  celery-beat:
+    build: ./backend
+    container_name: celery_beat_container
+    command: celery -A main beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - backend
+      - celery
+    restart: unless-stopped

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { Form, Input, Select, Space, message } from "antd";
-import { MinusCircleOutlined } from "@ant-design/icons";
+import React, {useEffect, useState} from "react";
+import {Form, Input, message, Select, Space} from "antd";
+import {MinusCircleOutlined} from "@ant-design/icons";
 import apiClient from "../../../services/api.jsx";
 
 const TaskItem = ({ name, remove, form, updateTotalPercentage }) => {
@@ -100,7 +100,7 @@ const TaskItem = ({ name, remove, form, updateTotalPercentage }) => {
                 updateTotalPercentage();
               }}
               style={{ width: 150 }}
-              disabled={!form.getFieldValue(["tasks", name, "product"])}
+                // disabled={!form.getFieldValue(["tasks", name, "product"])}
             >
               {packings.map((pack) => (
                 <Select.Option key={pack.id} value={pack.id}>
@@ -118,7 +118,7 @@ const TaskItem = ({ name, remove, form, updateTotalPercentage }) => {
               onChange={(e) => {
                 fetchPercentage(e.target.value, form.getFieldValue(["tasks", name, "packing"]));
               }}
-              disabled={!form.getFieldValue(["tasks", name, "packing"])}
+                // disabled={!form.getFieldValue(["tasks", name, "packing"])}
             />
           </Form.Item>
 

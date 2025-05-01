@@ -1,14 +1,15 @@
 import logging
 
-from rest_framework import viewsets, status, permissions
+from django.db.models import Prefetch
+from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import task
 from .models import Shift, Product, Packing, PackingLog, DefaultSettings, ShiftTask, Master
 from .repos.redis_repository import RedisRepository
+from .ser import ShiftDetailSerializer
 from .serializers import (
     ProductSerializer,
     PackingSerializer,
@@ -16,7 +17,8 @@ from .serializers import (
     ShiftSerializer,
     ShiftTaskSerializer,
     # ShiftTaskDetailedSerializer,
-    PackingCreateSerializer, DetailedShiftSerializer
+    PackingCreateSerializer, DetailedShiftSerializer, _ShiftTaskSerializer,
+    ShiftListSerializer
 )
 
 
@@ -88,44 +90,79 @@ class ProductViewSet(BaseViewSet):
         packings = Packing.objects.filter(productpacking__product=product)
         return Response(PackingSerializer(packings, many=True).data)
 
-class ShiftViewSet(BaseViewSet):
+
+class ShiftViewSet(viewsets.ModelViewSet):
     queryset = Shift.objects.all()
     serializer_class = ShiftSerializer
 
+    @action(detail=True, methods=['get'])
+    def task_history(self, request, pk=None):
+        shift = self.get_object()
+        tasks = shift.shifttask_set.all()
+        serializer = _ShiftTaskSerializer(tasks, many=True)
+        return Response(serializer.data)
+
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        is_many = isinstance(request.data, list)
 
-        try:
-            serializer.save(user_starts=request.user)
-            shift = serializer.instance
-            self._initialize_shift_in_redis(shift)
-            self._save_shift_tasks(shift)
-            task.lead_shift.apply_async(args=[shift.id])
-            return Response(
-                {"message": "Смена успешно создана!", "shift": serializer.data},
-                status=status.HTTP_201_CREATED
-            )
-        except Exception as e:
-            logging.exception("Shift creation error")
-            return Response(
-                {"error": str(e)}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        if is_many:
+            serializer = self.get_serializer(data=request.data, many=True)
+        else:
+            serializer = self.get_serializer(data=request.data)
 
-    def _initialize_shift_in_redis(self, shift):
-        self.redis.update_shift_data(shift.id, {
-            "id": shift.id,
-            "master": shift.master.id,
-            "status": shift.status,
-            "active_task": 0,
-        })
+        serializer.is_valid(raise_exception=True)
+
+        if is_many:
+            created_shifts = []
+            for item in serializer.validated_data:
+                shift_serializer = self.get_serializer(data=item)
+                shift_serializer.is_valid(raise_exception=True)
+                created_shift = shift_serializer.save()
+                created_shifts.append(created_shift)
+
+            response_serializer = self.get_serializer(created_shifts, many=True)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # def create(self, request, *args, **kwargs):
+    #     serializer = self.get_serializer(data=request.data)
+    #     if not serializer.is_valid():
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #
+    #     try:
+    #         serializer.save(user_starts=request.user)
+    #         shift = serializer.instance
+    #         self._initialize_shift_in_redis(shift)
+    #         self._save_shift_tasks(shift)
+    #         task.lead_shift.apply_async(args=[shift.id])
+    #         return Response(
+    #             {"message": "Смена успешно создана!", "shift": serializer.data},
+    #             status=status.HTTP_201_CREATED
+    #         )
+    #     except Exception as e:
+    #         logging.exception("Shift creation error")
+    #         return Response(
+    #             {"error": str(e)},
+    #             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+    #         )
+
+
 
     def _save_shift_tasks(self, shift):
         for task in shift.shifttask_set.all():
             self.redis.save_task(task)
 
+
+class ShiftListAPI(APIView):
+    def get(self, request):
+        status_filter = request.query_params.get('status')
+        queryset = Shift.objects.select_related('master')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        serializer = ShiftListSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ActiveShiftView(APIView):
     def get(self, request):
@@ -196,3 +233,22 @@ class MasterViewSet(viewsets.ReadOnlyModelViewSet):
         masters = self.get_queryset()
         data = [{'id': master.id, 'name': master.name} for master in masters]
         return Response(data)
+
+
+class ShiftDetailAPIView(generics.RetrieveAPIView):
+    """
+    Возвращает:
+    - shift (id, times, status, active_task)
+    - user_starts, user_ends (username)
+    - master (name)
+    - shifttask_set: массив задач, внутри вложены product и packing
+    """
+    queryset = Shift.objects.all() \
+        .select_related('user_starts', 'user_ends', 'master') \
+        .prefetch_related(
+        Prefetch('shifttask_set',
+                 queryset=ShiftTask.objects.select_related('product', 'packing')
+                 )
+    )
+    serializer_class = ShiftDetailSerializer
+    lookup_field = 'id'
