@@ -1,67 +1,90 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import ShiftContext from '../services/ShiftContext';
 
+const WEBSOCKET_URL = 'ws://localhost:8000/ws/shifts/';
+const RELOAD_DELAY = 1000;
+
+const MESSAGE_TYPES = {
+  SHIFT_INIT: 'shift_init',
+  TASK_UPDATE: 'task_update',
+  SHIFT_UPDATE: 'shift_update'
+};
+
 const ShiftProvider = ({ children }) => {
-  const [shift, setShift] = useState(null);
-  const [activeTask, setActiveTask] = useState(null);
-  const [reload, setReload] = useState(false);
+  const [shiftData, setShiftData] = useState(null);
+  const [currentTask, setCurrentTask] = useState(null);
+  const [shouldReload, setShouldReload] = useState(false);
 
-  useEffect(() => {
-    // const socket = new WebSocket('ws://10.10.10.95:8000/ws/shifts/');
-    const socket = new WebSocket('ws://localhost:8000/ws/shifts/');
-
-    socket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message) {
-        if (message.type === 'shift_init') {
-          const { shift: shiftData, task: taskData } = message.data;
-          setShift(shiftData);
-          setActiveTask(taskData);
-        }
-        else if (message.type === 'task_update') {
-          setActiveTask((prevTask) => {
-            if (!prevTask) {
-              return message.data;
-            }
-            return { ...prevTask, ...message.data };
-          });
-        }
-        else if (message.type === 'shift_update') {
-          if (message.event === 'completed') {
-            setShift(null);
-            setActiveTask(null);
-            setReload(true);
-          } else {
-            setShift((prevShift) => ({
-              ...prevShift,
-              ...message.data,
-            }));
-          }
-        }
-      }
-    };
-
-    return () => {
-      // socket.close();
-    };
+  const handleShiftInit = useCallback((data) => {
+    const {shift, task} = data;
+    setShiftData(shift);
+    setCurrentTask(task);
   }, []);
 
+  const handleTaskUpdate = useCallback((data) => {
+    setCurrentTask((prevTask) => prevTask ? {...prevTask, ...data} : data);
+  }, []);
+
+  const handleShiftUpdate = useCallback((data, event) => {
+    if (event === 'completed') {
+      setShiftData(null);
+      setCurrentTask(null);
+      setShouldReload(true);
+    } else {
+      setShiftData((prevShift) => ({
+        ...prevShift,
+        ...data,
+      }));
+    }
+  }, []);
+
+  const handleWebSocketMessage = useCallback((event) => {
+    const message = JSON.parse(event.data);
+    if (!message) return;
+
+    switch (message.type) {
+      case MESSAGE_TYPES.SHIFT_INIT:
+        handleShiftInit(message.data);
+        break;
+      case MESSAGE_TYPES.TASK_UPDATE:
+        handleTaskUpdate(message.data);
+        break;
+      case MESSAGE_TYPES.SHIFT_UPDATE:
+        handleShiftUpdate(message.data, message.event);
+        break;
+      default:
+        console.warn('Неизвестный тип сообщения:', message.type);
+    }
+  }, [handleShiftInit, handleTaskUpdate, handleShiftUpdate]);
+
   useEffect(() => {
-    if (reload) {
+    const socket = new WebSocket(WEBSOCKET_URL);
+    socket.onmessage = handleWebSocketMessage;
+
+    return () => {
+      socket.close();
+    };
+  }, [handleWebSocketMessage]);
+
+  useEffect(() => {
+    if (shouldReload) {
       const timer = setTimeout(() => {
-        setReload(false);
-      }, 1000);
+        setShouldReload(false);
+      }, RELOAD_DELAY);
       return () => clearTimeout(timer);
     }
-  }, [reload]);
+  }, [shouldReload]);
 
   return (
-    <ShiftContext.Provider value={{
-      shift,
-      activeTask,
-      setShift,
-      setActiveTask,
-      reload}}>
+      <ShiftContext.Provider
+          value={{
+            shift: shiftData,
+            activeTask: currentTask,
+            setShift: setShiftData,
+            setActiveTask: setCurrentTask,
+            reload: shouldReload
+          }}
+      >
       {children}
     </ShiftContext.Provider>
   );

@@ -1,17 +1,14 @@
 import logging
 import time
-import json
 import traceback
-from datetime import datetime
-
-from celery import shared_task
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from django.conf import settings
-from django.utils import timezone
-from django.forms.models import model_to_dict
 
 import redis
+from asgiref.sync import async_to_sync
+from celery import shared_task
+from channels.layers import get_channel_layer
+from django.conf import settings
+from django.forms.models import model_to_dict
+from django.utils import timezone
 
 from dashboard.models import ShiftTask, Shift
 
@@ -22,6 +19,27 @@ redis_conn = redis.Redis(
     password=settings.REDIS_CONFIG["PASSWORD"],
     decode_responses=True,
 )
+
+
+@shared_task
+def check_and_start_shifts():
+    """
+    Проверяет и запускает смены, которые должны начаться
+    """
+    current_time = timezone.now()
+
+    # Находим все запланированные смены, которые должны начаться
+    planned_shifts = Shift.objects.filter(
+        status='PLANNED',
+        planned_start_time__lte=current_time
+    ).order_by('planned_start_time')
+
+    for shift in planned_shifts:
+        # Завершаем все активные смены перед запуском новой
+        Shift.end_active_shifts()
+
+        # Запускаем смену
+        shift.start_shift()
 
 
 @shared_task(bind=True)

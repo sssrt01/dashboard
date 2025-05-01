@@ -4,30 +4,35 @@ import "../../../assets/style.css";
 import BreakDashboard from "./BreakDashboard.jsx";
 import TaskDashboard from "./TaskDashboard.jsx";
 
+const REFRESH_INTERVAL_MS = 10000;
+
 const Dashboard = () => {
-    const {shift, activeTask, reload} = useContext(ShiftContext);
+    const {shift, activeTask} = useContext(ShiftContext);
 
-    useEffect(() => {
-        if (!shift) {
-            const intervalId = setInterval(() => {
-                window.location.reload();
-            }, 10000);
-            return () => clearInterval(intervalId);
-        }
-    }, [shift]);
+    const useAutoRefresh = (isEnabled) => {
+        useEffect(() => {
+            if (!isEnabled) {
+                const intervalId = setInterval(() => {
+                    window.location.reload();
+                }, REFRESH_INTERVAL_MS);
+                return () => clearInterval(intervalId);
+            }
+        }, [isEnabled]);
+    };
 
+    useAutoRefresh(shift);
 
     if (!activeTask) {
         return <h1>Немає активної зміни.</h1>;
     }
 
-    if (activeTask.type === "BREAK") {
-        return <BreakDashboard/>
-    }
+    const dashboardComponents = {
+        BREAK: BreakDashboard,
+        TASK: TaskDashboard
+    };
 
-    if (activeTask.type === "TASK") {
-        return <TaskDashboard/>
-    }
+    const DashboardComponent = dashboardComponents[activeTask.type];
+    return DashboardComponent ? <DashboardComponent/> : null;
 };
 
 export default Dashboard;

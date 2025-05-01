@@ -1,41 +1,95 @@
 import apiClient from "./api.jsx";
+import {STORAGE_KEYS} from "../constants/storage.js";
 
-const login = async (username, password) => {
-  const response = await apiClient.post('token/', { username, password });
+const AUTH_ENDPOINTS = {
+  LOGIN: 'token/',
+  REFRESH: 'token/refresh/'
+};
 
-  if (response.data.access) {
-    localStorage.setItem('accessToken', response.data.access);
-    localStorage.setItem('refreshToken', response.data.refresh);
+class AuthService {
+  /**
+   * Управляет аутентификацией и работой с токенами
+   */
+  constructor() {
+    this.tokenStorage = {
+      setTokens: (access, refresh) => {
+        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access);
+        localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh);
+      },
+      clearTokens: () => {
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+      },
+      getAccessToken: () => localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
+      getRefreshToken: () => localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)
+    };
   }
 
-  return response.data;
-};
-
-const logout = () => {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-};
-
-const getAccessToken = () => localStorage.getItem('accessToken');
-
-const refreshAccessToken = async () => {
-  const refreshToken = localStorage.getItem('refreshToken');
-
-  if (refreshToken) {
+  /**
+   * Аутентификация пользователя
+   * @throws {Error} При неудачной аутентификации
+   */
+  async login(username, password) {
     try {
-      const response = await apiClient.post('token/refresh/', {
-        refresh: refreshToken,
-      });
-      localStorage.setItem('accessToken', response.data.access);
-      return response.data.access;
+      const response = await apiClient.post(AUTH_ENDPOINTS.LOGIN, {username, password});
+      const {access, refresh} = response.data;
+
+      if (!access || !refresh) {
+        throw new Error('Токены отсутствуют в ответе');
+      }
+
+      this.tokenStorage.setTokens(access, refresh);
+      return response.data;
     } catch (error) {
-      console.error('Error refreshing token:', error);
-      logout();
+      console.error('Ошибка аутентификации:', error);
+      throw error;
     }
   }
-  return null;
-};
 
-const authService = { login, logout, getAccessToken, refreshAccessToken };
+  /**
+   * Выход пользователя
+   */
+  logout() {
+    this.tokenStorage.clearTokens();
+  }
 
+  /**
+   * Получение текущего access token
+   */
+  getAccessToken() {
+    return this.tokenStorage.getAccessToken();
+  }
+
+  /**
+   * Обновление access token
+   * @throws {Error} При ошибке обновления токена
+   */
+  async refreshAccessToken() {
+    const refreshToken = this.tokenStorage.getRefreshToken();
+
+    if (!refreshToken) {
+      return null;
+    }
+
+    try {
+      const response = await apiClient.post(AUTH_ENDPOINTS.REFRESH, {
+        refresh: refreshToken
+      });
+
+      const {access} = response.data;
+      if (!access) {
+        throw new Error('Новый access token отсутствует в ответе');
+      }
+
+      this.tokenStorage.setTokens(access, refreshToken);
+      return access;
+    } catch (error) {
+      console.error('Ошибка обновления токена:', error);
+      this.logout();
+      throw error;
+    }
+  }
+}
+
+const authService = new AuthService();
 export default authService;

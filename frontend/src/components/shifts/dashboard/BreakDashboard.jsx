@@ -1,71 +1,81 @@
-import React, {useContext} from "react";
+import React from "react";
+import PropTypes from "prop-types";
+import styled from "styled-components";
 import Clock from "../../Clock.jsx";
 import formatTime from "../../../FormatTime.jsx";
 import ShiftContext from "../../../services/ShiftContext.jsx";
 
-const BreakTimer = () => {
-    const {shift, activeTask, reload} = useContext(ShiftContext);
+const Container = styled.div`
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+    background-color: #fff;
+    color: #333;
+`;
 
+const Header = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+`;
+
+const ClockWrapper = styled.div`
+    padding: 10px;
+    text-align: center;
+    min-width: 120px;
+`;
+
+const BreakInfo = styled.div`
+    text-align: center;
+    flex: 1;
+`;
+
+const BreakTitle = styled.h1`
+    margin: 0;
+    font-size: 2rem;
+    font-weight: bold;
+`;
+
+const TimerContainer = styled.div`
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+`;
+
+const Timer = styled.h1`
+    font-size: 5rem;
+    font-weight: bold;
+`;
+
+const BreakTimer = () => {
+    const {activeTask} = React.useContext(ShiftContext);
 
     return (
-        <div style={styles.container}>
-            <div style={styles.topRow}>
-                <div style={styles.clockContainer}>
+        <Container>
+            <Header>
+                <ClockWrapper>
                     <Clock/>
-                </div>
-                <div style={styles.shiftInfo}>
-                    <h1 style={styles.breakText}>Перерва</h1>
-                </div>
-            </div>
-
-            <div style={styles.middleRow}>
-                <h1 style={styles.timer}>{formatTime(activeTask.remaining_time)}</h1>
-            </div>
-        </div>
+                </ClockWrapper>
+                <BreakInfo>
+                    <BreakTitle>Перерва</BreakTitle>
+                </BreakInfo>
+            </Header>
+            <TimerContainer>
+                <Timer>{formatTime(activeTask.remaining_time)}</Timer>
+            </TimerContainer>
+        </Container>
     );
 };
 
-const styles = {
-    container: {
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        fontFamily: "Arial, sans-serif",
-        backgroundColor: "#fff",
-        color: "#333",
-    },
-    topRow: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "20px",
-        backgroundColor: "#f8f9fa",
-        borderBottom: "2px solid #dee2e6",
-    },
-    clockContainer: {
-        padding: "10px",
-        textAlign: "center",
-        minWidth: "120px",
-    },
-    shiftInfo: {
-        textAlign: "center",
-        flex: 1,
-    },
-    breakText: {
-        margin: "0",
-        fontSize: "2rem",
-        fontWeight: "bold",
-    },
-    middleRow: {
-        flex: 1,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    timer: {
-        fontSize: "5rem",
-        fontWeight: "bold",
-    },
+BreakTimer.propTypes = {
+    activeTask: PropTypes.shape({
+        remaining_time: PropTypes.number.isRequired,
+    }),
 };
 
 export default BreakTimer;

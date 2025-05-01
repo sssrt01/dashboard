@@ -1,130 +1,106 @@
-import React, { useContext } from "react";
+import React, {useContext} from "react";
+import PropTypes from "prop-types";
+import styled from "styled-components";
 import ShiftContext from "../../../services/ShiftContext.jsx";
 import formatTime from "../../../FormatTime.jsx";
 import Clock from "../../Clock.jsx";
 
+const LABELS = {
+  loading: "Загрузка...",
+  completed: "Виконано",
+  target: "Ціль",
+  difference: "Різниця"
+};
+
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+  background-color: #fff;
+  color: #333;
+`;
+
+const TopSection = styled.div`
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 5px;
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+`;
+
+const ShiftInfo = styled.div`
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  white-space: nowrap;
+`;
+
+const MiddleSection = styled.div`
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+`;
+
+const BottomSection = styled.div`
+  display: flex;
+  justify-content: space-around;
+  padding: 50px;
+  background-color: #f0f0f0;
+  border-top: 2px solid #dee2e6;
+`;
+
+const MetricCard = ({label, value}) => (
+    <div style={{display: "flex", flexDirection: "column", alignItems: "center"}}>
+      <p style={{margin: 0, fontSize: "2.5rem", color: "#666"}}>{label}</p>
+      <p style={{margin: 0, fontSize: "4rem", fontWeight: "bold"}}>{value}</p>
+    </div>
+);
+
+MetricCard.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired
+};
+
 const TaskDashboard = () => {
-  const { shift, activeTask, reload } = useContext(ShiftContext);
+  const {shift, activeTask} = useContext(ShiftContext);
 
   if (!shift || !activeTask) {
-    return <div>Loading...</div>;
+    return <div>{LABELS.loading}</div>;
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.topRow}>
-        <div style={styles.clockContainer}>
+      <Container>
+        <TopSection>
+          <div style={{padding: "10px", textAlign: "center", minWidth: "120px", flexShrink: 0}}>
           <Clock />
         </div>
-        <div style={styles.shiftInfo}>
-          <p style={styles.shiftName}>{shift.name}</p>
-          <h1 style={styles.product}>{activeTask.product}</h1>
-          <h2 style={styles.packing}>{activeTask.packing} л</h2>
-        </div>
-      </div>
+          <ShiftInfo>
+            <p style={{margin: 0, fontSize: "1rem", color: "#777"}}>{shift.name}</p>
+            <h1 style={{margin: 0, fontSize: "2rem", fontWeight: "bold"}}>{activeTask.product}</h1>
+            <h2 style={{margin: "5px 0", fontSize: "2rem", color: "#555"}}>{activeTask.packing} л</h2>
+          </ShiftInfo>
+        </TopSection>
 
-      <div style={styles.middleRow}>
-        <h1 style={styles.timer}>{formatTime(activeTask.time_spent)}</h1>
-      </div>
+        <MiddleSection>
+          <h1 style={{fontSize: "5rem", fontWeight: "bold"}}>
+            {formatTime(activeTask.time_spent)}
+          </h1>
+        </MiddleSection>
 
-      {/* Нижний ряд */}
-      <div style={styles.bottomRow}>
-        <div style={styles.bottomItem}>
-          <p style={styles.label}>Виконано</p>
-          <p style={styles.value}>{activeTask.ready_value}</p>
-        </div>
-        <div style={styles.bottomItem}>
-          <p style={styles.label}>Ціль</p>
-          <p style={styles.value}>{activeTask.target}</p>
-        </div>
-        <div style={styles.bottomItem}>
-          <p style={styles.label}>Різниця</p>
-          <p style={styles.value}>
-            {activeTask.ready_value - activeTask.target}
-          </p>
-        </div>
-      </div>
-    </div>
+        <BottomSection>
+          <MetricCard label={LABELS.completed} value={activeTask.ready_value}/>
+          <MetricCard label={LABELS.target} value={activeTask.target}/>
+          <MetricCard
+              label={LABELS.difference}
+              value={activeTask.ready_value - activeTask.target}
+          />
+        </BottomSection>
+      </Container>
   );
-};
-
-const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100vh",
-    fontFamily: "Arial, sans-serif",
-    backgroundColor: "#fff",
-    color: "#333",
-  },
-  topRow: {
-    display: "flex",
-    alignItems: "center",
-    position: "relative", // Делаем родительский контейнер относительным
-    padding: "5px",
-    backgroundColor: "#f8f9fa",
-    borderBottom: "2px solid #dee2e6",
-  },
-  clockContainer: {
-    padding: "10px",
-    textAlign: "center",
-    minWidth: "120px",
-    flexShrink: 0, // Запрещаем сжиматься
-  },
-  shiftInfo: {
-    position: "absolute", // Центрируем по экрану
-    left: "50%",
-    transform: "translateX(-50%)", // Сдвигаем влево на половину ширины
-    textAlign: "center",
-    whiteSpace: "nowrap",
-  },
-  shiftName: {
-    margin: "0",
-    fontSize: "1rem",
-    color: "#777",
-  },
-  product: {
-    margin: "0",
-    fontSize: "2rem",
-    fontWeight: "bold",
-  },
-  packing: {
-    margin: "5px 0",
-    fontSize: "2rem",
-    color: "#555",
-  },
-  middleRow: {
-    flex: 1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  timer: {
-    fontSize: "5rem",
-    fontWeight: "bold",
-  },
-  bottomRow: {
-    display: "flex",
-    justifyContent: "space-around",
-    padding: "50px",
-    backgroundColor: "#f0f0f0",
-    borderTop: "2px solid #dee2e6",
-  },
-  bottomItem: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-  label: {
-    margin: "0",
-    fontSize: "2.5rem",
-    color: "#666",
-  },
-  value: {
-    margin: "0",
-    fontSize: "4rem",
-    fontWeight: "bold",
-  },
 };
 
 export default TaskDashboard;
