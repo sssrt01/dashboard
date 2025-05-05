@@ -13,7 +13,7 @@ const ShiftsStatistics = () => {
     useEffect(() => {
         const fetchStatistics = async () => {
             try {
-                const response = await apiClient.get('/api/shifts/statistics/');
+                const response = await apiClient.get('/shifts/statistics/');
                 setStatistics(Array.isArray(response.data) ? response.data : []);
             } catch (error) {
                 console.error('Ошибка при загрузке статистики:', error);
