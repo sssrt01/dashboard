@@ -34,6 +34,8 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    env_file:
+      - .env
 
   frontend:
     build:
@@ -44,11 +46,11 @@ services:
       - /app/node_modules # Исключаем node_modules внутри контейнера
     ports:
       - '3000:5173' # Пробрасываем порт для Vite-сервера
-    environment:
-      - VITE_API_BASE_URL=$VITE_API_BASE_URL
     depends_on:
       - backend
     restart: unless-stopped
+    env_file:
+      - .env
 
   celery:
     build: ./backend
@@ -60,6 +62,8 @@ services:
       - redis
       - backend
     restart: unless-stopped
+    env_file:
+      - .env
 
   celery-beat:
     build: ./backend
@@ -72,3 +76,5 @@ services:
       - backend
       - celery
     restart: unless-stopped
+    env_file:
+      - .env

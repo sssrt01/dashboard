@@ -1,11 +1,10 @@
 import axios from 'axios';
-import {API_CONFIG} from "../constants/api.js";
 
 const AUTH_HEADER = 'Bearer';
 const HTTP_UNAUTHORIZED = 401;
 
 const apiClient = axios.create({
-    baseURL: API_CONFIG.PROD_URL,
+    baseURL: import.meta.env.VITE_API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
     },

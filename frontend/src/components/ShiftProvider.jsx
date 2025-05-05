@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import ShiftContext from '../services/ShiftContext';
 
-const WEBSOCKET_URL = 'ws://10.10.10.95:8000/ws/shifts/';
+const WEBSOCKET_URL = import.meta.env.VITE_WS_URL;
 const RELOAD_DELAY = 1000;
 
 const MESSAGE_TYPES = {
