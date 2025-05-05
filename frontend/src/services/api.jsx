@@ -9,7 +9,7 @@ const HTTP_UNAUTHORIZED = 401;
  * Создание настроенного экземпляра axios
  */
 const apiClient = axios.create({
-    baseURL: API_CONFIG.BASE_URL,
+    baseURL: API_CONFIG.PROD_URL,
   headers: {
     'Content-Type': 'application/json',
   },

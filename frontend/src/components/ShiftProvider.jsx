@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import ShiftContext from '../services/ShiftContext';
 
-const WEBSOCKET_URL = 'ws://localhost:8000/ws/shifts/';
+const WEBSOCKET_URL = 'ws://10.10.10.95:8000/ws/shifts/';
 const RELOAD_DELAY = 1000;
 
 const MESSAGE_TYPES = {
@@ -16,14 +16,28 @@ const ShiftProvider = ({ children }) => {
   const [shouldReload, setShouldReload] = useState(false);
 
   const handleShiftInit = useCallback((data) => {
-    const {shift, task} = data;
+    const {shift, tasks} = data;
     setShiftData(shift);
-    setCurrentTask(task);
+    // Находим активную задачу из списка задач
+    const activeTaskIndex = parseInt(shift.active_task) || 0;
+    if (tasks && tasks.length > 0) {
+      setCurrentTask(tasks[activeTaskIndex]);
+    }
   }, []);
 
+
   const handleTaskUpdate = useCallback((data) => {
-    setCurrentTask((prevTask) => prevTask ? {...prevTask, ...data} : data);
+    setCurrentTask(prevTask => ({
+      ...prevTask,
+      ready_value: data.ready_value,
+      time_spent: data.time_spent,
+      remaining_time: data.remaining_time,
+      started_at: data.started_at,
+      finished_at: data.finished_at,
+      norm_in_minute: parseFloat(data.norm_in_minute) || 0
+    }));
   }, []);
+
 
   const handleShiftUpdate = useCallback((data, event) => {
     if (event === 'completed') {
