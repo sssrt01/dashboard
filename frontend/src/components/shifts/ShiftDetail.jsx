@@ -1,15 +1,16 @@
 import React, {useEffect, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {Button, Card, Descriptions, Divider, Spin, Table, Tag} from 'antd';
+import {Button, Card, Descriptions, Divider, Modal, Spin, Table, Tag} from 'antd';
+import {DeleteOutlined} from '@ant-design/icons';
 import PropTypes from 'prop-types';
 import apiClient from "../../services/api.jsx";
 import {
-  DATE_TIME_SHORT_FORMAT,
-  EMPTY_VALUE,
-  formatDateTime,
-  formatValue,
-  PAGE_SIZE,
-  STATUS_COLORS
+    DATE_TIME_SHORT_FORMAT,
+    EMPTY_VALUE,
+    formatDateTime,
+    formatValue,
+    PAGE_SIZE,
+    STATUS_COLORS
 } from '../../constants/shifts';
 
 
@@ -108,6 +109,8 @@ export default function ShiftDetail() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // ... остальные useEffect и функции остаются без изменений ...
+
     useEffect(() => {
         apiClient
             .get(`shifts_detail/${id}/`)
@@ -125,14 +128,59 @@ export default function ShiftDetail() {
             });
     }, [id]);
 
+
+    const handleDelete = () => {
+        Modal.confirm({
+            title: 'Підтвердження видалення',
+            content: 'Ви дійсно хочете видалити цю зміну?',
+            okText: 'Так, видалити',
+            okType: 'danger',
+            cancelText: 'Скасувати',
+            onOk: () => {
+                setLoading(true);
+                apiClient
+                    .delete(`shifts/${id}/`)
+                    .then(() => {
+                        navigate('/shifts');
+                    })
+                    .catch((error) => {
+                        Modal.error({
+                            title: 'Помилка',
+                            content: error.response?.data?.detail || 'Не вдалося видалити зміну'
+                        });
+                    })
+                    .finally(() => {
+                        setLoading(false);
+                    });
+            }
+        });
+    };
+
     if (loading) return <Spin style={{margin: 50}}/>;
     if (error) return <div>{error}</div>;
     if (!shift) return <div>Зміну з ID {id} не знайдено.</div>;
 
+    const extraButtons = (
+        <>
+            {shift.status === 'PLANNED' && (
+                <Button
+                    type="primary"
+                    danger
+                    icon={<DeleteOutlined/>}
+                    onClick={handleDelete}
+                    style={{marginRight: 8}}
+                >
+                    Видалити
+                </Button>
+            )}
+            <Button onClick={() => navigate(-1)}>Назад</Button>
+        </>
+    );
+
     return (
         <Card
             title={`Зміна #${shift.id}`}
-            extra={<Button onClick={() => navigate(-1)}>Назад</Button>}
+            extra={extraButtons}
         >
             <ShiftDescription shift={shift}/>
             <Divider/>

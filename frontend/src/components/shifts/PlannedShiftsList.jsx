@@ -55,6 +55,7 @@ const getTableColumns = (onView) => [
         width: 80,
         sorter: (a, b) => a.id - b.id,
         align: 'center',
+        defaultSortOrder: 'descend',
     },
     {
         title: 'Статус',
@@ -104,12 +105,14 @@ const getTableColumns = (onView) => [
                 type="link"
                 icon={<EyeOutlined/>}
                 onClick={() => onView(record.id)}
+                disabled={record.status === 'ACTIVE'}
             >
                 Деталі
             </Button>
         ),
         align: 'center',
     },
+
 ];
 
 export default function ShiftList() {
@@ -136,7 +139,7 @@ export default function ShiftList() {
                 bordered
                 size="middle"
                 pagination={{
-                    pageSize: PAGE_SIZE.SMALL,
+                    pageSize: PAGE_SIZE.DEFAULT,
                     showSizeChanger: true,
                     showQuickJumper: true,
                     showTotal: (total) => `Всього ${total} записів`,
