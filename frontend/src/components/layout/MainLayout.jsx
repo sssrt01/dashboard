@@ -20,28 +20,27 @@ const MainLayout = () => {
         {
             key: '/shifts',
             icon: <ScheduleOutlined/>,
-            label: <Link to="/shifts">Список смен</Link>,
+            label: <Link to="/shifts">Список змін</Link>,
         },
         {
             key: '/shifts/new',
             icon: <PlusCircleOutlined/>,
-            label: <Link to="/shifts/new">Создать смену</Link>,
+            label: <Link to="/shifts/new">Створити зміну</Link>,
         },
         {
             key: '/shifts/control',
             icon: <ControlOutlined/>,
-            label: <Link to="/shifts/control">Управление сменой</Link>,
+            label: <Link to="/shifts/control">Керування зміною</Link>,
         },
         {
             key: 'logout',
             icon: <LogoutOutlined/>,
-            label: 'Выйти',
+            label: 'Вийти',
             onClick: handleLogout,
             style: {marginTop: 'auto'},
             danger: true
         }
     ];
-
     return (
         <Layout style={{minHeight: '100vh'}}>
             <Sider
