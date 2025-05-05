@@ -176,6 +176,11 @@ class ShiftTask(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
+    def save(self, *args, **kwargs):
+        if self.packing:
+            self.norm_in_minute = self.packing.norm_in_minute()
+        super().save(*args, **kwargs)
+
 
 class PackingLog(models.Model):
     shift = models.ForeignKey(Shift, on_delete=models.CASCADE, null=True, blank=True)

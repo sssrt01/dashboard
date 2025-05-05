@@ -3,6 +3,7 @@ import logging
 from django.db.models import Prefetch
 from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -101,6 +102,13 @@ class ShiftViewSet(viewsets.ModelViewSet):
         tasks = shift.shifttask_set.all()
         serializer = _ShiftTaskSerializer(tasks, many=True)
         return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        shift = self.get_object()
+        if shift.status != Shift.Status.PLANNED:
+            raise PermissionDenied("Можна видаляти тільки заплановані зміни")
+        return super().destroy(request, *args, **kwargs)
+
 
     def create(self, request, *args, **kwargs):
         is_many = isinstance(request.data, list)

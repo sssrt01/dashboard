@@ -1,5 +1,6 @@
-import redis
 import logging
+
+import redis
 from django.conf import settings
 
 from dashboard.models import Product, ProductPacking
@@ -51,6 +52,7 @@ class RedisRepository:
                 "product": str(product),
                 "packing": str(packing.packing.value),
                 "shift": task.shift_id,
+                "norm_in_minute": task.packing.norm_in_minute() if task.packing else 0
             }
         return {
             "id": task.id,
