@@ -4,19 +4,20 @@ import {CheckCircleOutlined, GroupOutlined} from '@ant-design/icons';
 import moment from 'moment';
 import axios from 'axios';
 
-const {Title, Text} = Typography;
+const {Title} = Typography;
 
 const ShiftsStatistics = () => {
-    const [statistics, setStatistics] = useState([]);
+    const [statistics, setStatistics] = useState([]); // Инициализируем как пустой массив
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStatistics = async () => {
             try {
                 const response = await axios.get('/api/shifts/statistics/');
-                setStatistics(response.data);
+                setStatistics(response.data || []); // Убедимся, что всегда устанавливаем массив
             } catch (error) {
                 console.error('Ошибка при загрузке статистики:', error);
+                setStatistics([]); // В случае ошибки устанавливаем пустой массив
             } finally {
                 setLoading(false);
             }
@@ -30,10 +31,12 @@ const ShiftsStatistics = () => {
             title: 'Мастер',
             dataIndex: 'master_name',
             key: 'master_name',
-            filters: [...new Set(statistics.map(item => item.master_name))].map(name => ({
-                text: name,
-                value: name,
-            })),
+            filters: Array.from(new Set(statistics.map(item => item?.master_name)))
+                .filter(Boolean)
+                .map(name => ({
+                    text: name,
+                    value: name,
+                })),
             onFilter: (value, record) => record.master_name === value,
         },
         {
