@@ -2,7 +2,7 @@ import logging
 
 from django.db.models import Prefetch
 from rest_framework import viewsets, status, permissions, generics
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -21,6 +21,7 @@ from .serializers import (
     PackingCreateSerializer, DetailedShiftSerializer, _ShiftTaskSerializer,
     ShiftListSerializer
 )
+from .services import get_shifts_statistics
 
 
 class BaseViewSet(viewsets.ModelViewSet):
@@ -31,6 +32,12 @@ class PackageViewSet(viewsets.ModelViewSet):
     queryset = Packing.objects.all()
     serializer_class = PackingCreateSerializer
     permission_classes = [permissions.AllowAny]
+
+
+@api_view(['GET'])
+def shifts_statistics(request):
+    statistics = get_shifts_statistics()
+    return Response(statistics)
 
 class CalculatePercentageView(APIView):
     permission_classes = [IsAuthenticated]

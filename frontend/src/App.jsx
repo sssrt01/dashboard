@@ -9,6 +9,7 @@ import NewShiftForm from "./components/shifts/form/NewShiftForm.jsx";
 import ShiftControl from "./components/ShiftControl.jsx";
 import ShiftList from "./components/shifts/PlannedShiftsList.jsx";
 import Dashboard from "./components/shifts/dashboard/Dashboard.jsx";
+import ShiftsStatistics from "./components/ShiftStatistics.jsx";
 
 function App() {
 
@@ -24,6 +25,7 @@ function App() {
                             <Route path="shifts/new" element={<NewShiftForm/>}/>
                             <Route path="shifts/control" element={<ShiftControl/>}/>
                             <Route path="shifts/:id" element={<ShiftDetail/>}/>
+                            <Route path="shifts/statistics" element={<ShiftsStatistics/>}/>
                         </Route>
                     </Routes>
                 </BrowserRouter>

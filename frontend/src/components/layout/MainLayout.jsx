@@ -1,6 +1,12 @@
 import React, {useState} from 'react';
 import {Layout, Menu} from 'antd';
-import {ControlOutlined, LogoutOutlined, PlusCircleOutlined, ScheduleOutlined} from '@ant-design/icons';
+import {
+    BarChartOutlined,
+    ControlOutlined,
+    LogoutOutlined,
+    PlusCircleOutlined,
+    ScheduleOutlined
+} from '@ant-design/icons';
 import {Link, Outlet, useLocation, useNavigate} from 'react-router-dom';
 import authService from '../../services/authService';
 
@@ -31,6 +37,11 @@ const MainLayout = () => {
             key: '/shifts/control',
             icon: <ControlOutlined/>,
             label: <Link to="/shifts/control">Керування зміною</Link>,
+        },
+        {
+            key: '/shifts/statistics',
+            icon: <BarChartOutlined/>,
+            label: <Link to="/shifts/statistics">Статистика</Link>,
         },
         {
             key: 'logout',
