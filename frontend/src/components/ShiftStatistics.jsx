@@ -1,23 +1,23 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {Card, Progress, Space, Table, Typography} from 'antd';
 import {CheckCircleOutlined, GroupOutlined} from '@ant-design/icons';
 import moment from 'moment';
-import axios from 'axios';
+import apiClient from "../services/api.jsx";
 
 const {Title} = Typography;
 
 const ShiftsStatistics = () => {
-    const [statistics, setStatistics] = useState([]); // Инициализируем как пустой массив
+    const [statistics, setStatistics] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchStatistics = async () => {
             try {
-                const response = await axios.get('/api/shifts/statistics/');
-                setStatistics(response.data || []); // Убедимся, что всегда устанавливаем массив
+                const response = await apiClient.get('/api/shifts/statistics/');
+                setStatistics(Array.isArray(response.data) ? response.data : []);
             } catch (error) {
                 console.error('Ошибка при загрузке статистики:', error);
-                setStatistics([]); // В случае ошибки устанавливаем пустой массив
+                setStatistics([]);
             } finally {
                 setLoading(false);
             }
@@ -26,31 +26,41 @@ const ShiftsStatistics = () => {
         fetchStatistics();
     }, []);
 
+    const masterFilters = useMemo(() => {
+        if (!Array.isArray(statistics)) return [];
+
+        const uniqueMasters = new Set(
+            statistics
+                .filter(item => item && item.master_name)
+                .map(item => item.master_name)
+        );
+
+        return Array.from(uniqueMasters).map(name => ({
+            text: name,
+            value: name,
+        }));
+    }, [statistics]);
+
     const columns = [
         {
             title: 'Мастер',
             dataIndex: 'master_name',
             key: 'master_name',
-            filters: Array.from(new Set(statistics.map(item => item?.master_name)))
-                .filter(Boolean)
-                .map(name => ({
-                    text: name,
-                    value: name,
-                })),
+            filters: masterFilters,
             onFilter: (value, record) => record.master_name === value,
         },
         {
             title: 'Начало смены',
             dataIndex: 'start_time',
             key: 'start_time',
-            render: (text) => moment(text).format('DD.MM.YYYY HH:mm'),
+            render: (text) => text ? moment(text).format('DD.MM.YYYY HH:mm') : '-',
             sorter: (a, b) => moment(a.start_time).unix() - moment(b.start_time).unix(),
         },
         {
             title: 'Окончание смены',
             dataIndex: 'end_time',
             key: 'end_time',
-            render: (text) => moment(text).format('DD.MM.YYYY HH:mm'),
+            render: (text) => text ? moment(text).format('DD.MM.YYYY HH:mm') : '-',
         },
         {
             title: 'Выполнение смены',
