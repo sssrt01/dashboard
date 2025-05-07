@@ -92,6 +92,22 @@ const BottomSection = styled.div`
   border-top: 2px solid #dee2e6;
 `;
 
+const Timer = styled.h1`
+    font-size: 5rem;
+    font-weight: bold;
+    margin-bottom: 0;
+    color: ${props => props.performance >= 95 ? '#000' : '#ff4d4f'};
+`;
+
+
+const TaskTime = styled.div`
+    text-align: center;
+    margin-top: 10px;
+    font-size: 1.2rem;
+    color: #666;
+`;
+
+
 const MetricCard = ({label, value, showIndicator, performance}) => (
     <MetricContainer>
         <MetricHeader>
@@ -148,6 +164,16 @@ const TaskDashboard = () => {
             return () => clearInterval(intervalId);
         }
     }, [activeTask]);
+
+
+    const calculateTotalTime = () => {
+        if (!activeTask) return "";
+        const totalItems = activeTask.target;
+        const timePerItem = 1 / (parseFloat(activeTask.norm_in_minute) || 1);
+        const totalMinutes = totalItems * timePerItem;
+        return `Загальний час: ${formatTimeInMinutes(totalMinutes)}`;
+    };
+
 
     const getPerformanceStatus = (percent) => {
         if (percent >= 95) return "success";
@@ -213,19 +239,21 @@ const TaskDashboard = () => {
             </TopSection>
 
             <MiddleSection>
-                <h1 style={{fontSize: "5rem", fontWeight: "bold", marginBottom: "0"}}>
+                <Timer performance={performance.current}>
                     {formatTime(activeTask.time_spent)}
-                </h1>
-                <EstimatedTime>
-                    {calculateEstimatedTime()}
-                </EstimatedTime>
+                </Timer>
+                <TaskTime>
+                    <div>{calculateEstimatedTime()}</div>
+                    <div>{calculateTotalTime()}</div>
+                </TaskTime>
             </MiddleSection>
+
 
             <BottomSection>
                 <MetricCard
                     label={LABELS.completed}
                     value={activeTask.ready_value}
-                    showIndicator={true}
+                    showIndicator={false}
                     performance={performance.current}
                 />
                 <MetricCard label={LABELS.target} value={activeTask.target}/>
