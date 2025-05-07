@@ -10,7 +10,6 @@ router.register(r'packages', PackageViewSet)
 router.register(r'shifts', ShiftViewSet)
 router.register(r'tasks', ShiftTaskViewSet, basename='task')
 router.register(r'masters', MasterViewSet, basename='master')
-
 router.register(r'packing_log', PackingLogViewSet, basename='packing_log')
 
 websocket_urlpatterns = [

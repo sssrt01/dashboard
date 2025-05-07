@@ -1,4 +1,4 @@
-from .models import Shift, ShiftTask
+from dashboard.models import ShiftTask, Shift
 
 
 def get_shifts_statistics():
@@ -6,31 +6,45 @@ def get_shifts_statistics():
         status=Shift.Status.COMPLETED
     ).select_related('master')
 
-    statistics = []
+    masters_stats = {}
 
     for shift in completed_shifts:
-        # Получаем все задания в смене (исключая перерывы)
+        master_id = shift.master.id
+        master_name = shift.master.name
+
+        if master_id not in masters_stats:
+            masters_stats[master_id] = {
+                'master_id': master_id,
+                'master_name': master_name,
+                'total_shifts': 0,
+                'total_completion': 0,
+                'shifts_details': []
+            }
+
         tasks = ShiftTask.objects.filter(
             shift=shift,
             type=ShiftTask.TaskType.TASK
         )
 
-        # Подсчитываем процент выполнения для каждого задания
-        tasks_completion = []
+        shift_completion = 0
+        valid_tasks = 0
+
         for task in tasks:
             if task.target and task.ready_value:
                 completion_percent = (task.ready_value / task.target) * 100
-                tasks_completion.append(completion_percent)
+                shift_completion += completion_percent
+                valid_tasks += 1
 
-        # Считаем средний процент выполнения смены
-        avg_completion = sum(tasks_completion) / len(tasks_completion) if tasks_completion else 0
+        avg_shift_completion = round(shift_completion / valid_tasks, 2) if valid_tasks > 0 else 0
 
-        statistics.append({
+        masters_stats[master_id]['total_shifts'] += 1
+        masters_stats[master_id]['total_completion'] += avg_shift_completion
+
+        masters_stats[master_id]['shifts_details'].append({
             'shift_id': shift.id,
-            'master_name': shift.master.name,
             'start_time': shift.start_time,
             'end_time': shift.end_time,
-            'avg_completion': round(avg_completion, 2),
+            'avg_completion': avg_shift_completion,
             'tasks_count': len(tasks),
             'tasks_details': [
                 {
@@ -44,4 +58,13 @@ def get_shifts_statistics():
             ]
         })
 
-    return statistics
+    result = []
+    for master_stats in masters_stats.values():
+        master_stats['avg_completion'] = round(
+            master_stats['total_completion'] / master_stats['total_shifts']
+            if master_stats['total_shifts'] > 0 else 0,
+            2
+        )
+        result.append(master_stats)
+
+    return result
